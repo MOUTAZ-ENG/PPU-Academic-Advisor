@@ -59,6 +59,15 @@ SYSTEM_PROMPT = f"""أنت "المرشد الأكاديمي الذكي" لطلب
 11. لا تحسب للطالب ساعاته المتبقية للتخرج دون سجله الدراسي؛ اشرح القاعدة وأحِله إلى مشرفه الأكاديمي."""
 
 _client = None
+_gemini_clients: dict[str, object] = {}
+_exhausted: dict[tuple[str, str], float] = {}  # (key, model) -> time it hit its quota
+RETRY_AFTER = 600  # seconds before trying an exhausted key/model again
+
+
+def _gemini_keys() -> list[str]:
+    """GEMINI_API_KEY plus optional backup keys GEMINI_API_KEY_2, _3 (other Google accounts)."""
+    names = ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]
+    return [k for k in (os.getenv(n, "").strip() for n in names) if k]
 
 
 def llm(system: str, messages: list[dict]) -> str:
@@ -67,25 +76,28 @@ def llm(system: str, messages: list[dict]) -> str:
     if LLM_PROVIDER == "gemini":
         # Gemini accepts the OpenAI request format, so we use the openai library.
         from openai import APIStatusError, OpenAI
-        if _client is None:
-            _client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"),
-                             base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
-        # Free tier: each model has its own quota. If the main model is out of quota (429)
-        # or busy (5xx), switch to the fallback model instead of failing.
-        for model in (GEMINI_MODEL, GEMINI_FALLBACK, GEMINI_MODEL):
-            try:
-                reply = _client.chat.completions.create(
-                    model=model,
-                    max_tokens=MAX_TOKENS,
-                    messages=[{"role": "system", "content": system}] + messages,
-                )
-                return reply.choices[0].message.content or ""
-            except APIStatusError as e:
-                if e.status_code != 429 and e.status_code < 500:
-                    raise
-                print(f"  ! {model} unavailable ({e.status_code}), switching model")
-                time.sleep(2)
-        raise RuntimeError("All Gemini models are out of quota right now")
+        # Free tier: every key and every model has its own quota. Try the best model on
+        # each key first, then the fallback model. A key/model that hit its limit is
+        # skipped for 10 minutes, so later questions do not waste time on it.
+        for model in (GEMINI_MODEL, GEMINI_FALLBACK):
+            for key in _gemini_keys():
+                if time.time() - _exhausted.get((key, model), 0) < RETRY_AFTER:
+                    continue
+                client = _gemini_clients.setdefault(key, OpenAI(
+                    api_key=key, base_url="https://generativelanguage.googleapis.com/v1beta/openai/"))
+                try:
+                    reply = client.chat.completions.create(
+                        model=model,
+                        max_tokens=MAX_TOKENS,
+                        messages=[{"role": "system", "content": system}] + messages,
+                    )
+                    return reply.choices[0].message.content or ""
+                except APIStatusError as e:
+                    if e.status_code != 429 and e.status_code < 500:
+                        raise
+                    print(f"  ! {model} on key ...{key[-4:]} unavailable ({e.status_code}), trying next")
+                    _exhausted[(key, model)] = time.time()
+        raise RuntimeError("All Gemini keys/models are out of quota right now")
 
     import anthropic
     if _client is None:

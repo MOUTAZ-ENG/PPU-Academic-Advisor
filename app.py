@@ -326,7 +326,7 @@ def upload(files) -> str:
 with gr.Blocks(title=TITLE) as demo:
     gr.HTML(HEADER)
     with gr.Tab("💬 المحادثة"):
-        chatbot = gr.Chatbot(elem_id="chat", height=640, rtl=True, label="المحادثة")
+        chatbot = gr.Chatbot(elem_id="chat", height=420, rtl=True, label="المحادثة")
         with gr.Row():
             box = gr.Textbox(elem_id="ask-box", placeholder="✍️ اكتب سؤالك هنا… مثال: كم ساعة بقدر أسجل إذا كنت منذر؟",
                              scale=6, show_label=False, rtl=True, autofocus=True)
