@@ -34,8 +34,8 @@ def summary_markdown(top: int = 10) -> str:
     channels = Counter(r["channel"] for r in rows)
     common = Counter(r["question"] for r in rows).most_common(top)
     lines = [
-        f"| إجمالي الأسئلة | تمت الإجابة | رفض أو إحالة | الموقع | تيليجرام |",
-        f"|---|---|---|---|---|",
+        "| إجمالي الأسئلة | تمت الإجابة | رفض أو إحالة | الموقع | تيليجرام |",
+        "|---|---|---|---|---|",
         f"| **{total}** | {answered} ({answered / total:.0%}) | {total - answered} | "
         f"{channels.get('web', 0)} | {channels.get('telegram', 0)} |",
         "", "### الأسئلة الأكثر تكرارًا", "", "| # | السؤال | عدد المرات |", "|---|---|---|",
