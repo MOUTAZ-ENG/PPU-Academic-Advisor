@@ -50,10 +50,24 @@ DIALECT_TERMS = {
 }
 
 
+# If the question is about an EXAM, "غبت" means missing an exam (not lectures),
+# so these words replace the attendance expansion.
+EXAM_WORDS = ("امتحان", "امتحانات", "فاينل", "نهائي", "ميدتيرم", "اختبار")
+EXAM_TERMS = "الامتحان الفائت الامتحان النهائي التكميلي العذر ظرف قاهر قضية طلابية"
+ATTENDANCE_WORDS = ("غبت", "اغيب", "غياب")
+
+
 def expand_question(question: str) -> str:
     """Append formal words for any dialect word found in the question."""
     q = normalize_ar(question)
-    extra = [formal for word, formal in DIALECT_TERMS.items() if formal and normalize_ar(word) in q]
+    about_exam = any(normalize_ar(w) in q for w in EXAM_WORDS)
+    extra = [EXAM_TERMS] if about_exam else []
+    for word, formal in DIALECT_TERMS.items():
+        if not formal or normalize_ar(word) not in q:
+            continue
+        if about_exam and word in ATTENDANCE_WORDS:
+            continue  # exam absence, not lecture attendance
+        extra.append(formal)
     return f"{question} {' '.join(extra)}" if extra else question
 
 
