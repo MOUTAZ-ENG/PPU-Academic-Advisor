@@ -26,15 +26,31 @@ OUT_OF_SCOPE = ("عذرًا، أنا المرشد الأكاديمي لجامع�
                 "الأكاديمية من مستندات الجامعة: تعليمات الدراسة، والخطط الدراسية، وتعليمات الامتحانات.")
 # Start of the answer when the topic is academic but the documents do not contain it.
 NOT_FOUND = "لا أجد هذه المعلومة في المستندات المتاحة لي."
+# English versions (the assistant answers in the language of the question).
+OUT_OF_SCOPE_EN = ("Sorry, I am the Smart Academic Advisor of Palestine Polytechnic University. I only answer "
+                   "academic questions from the university documents: study regulations, study plans and exam instructions.")
+NOT_FOUND_EN = "I can't find this information in the documents available to me."
+REFUSAL_PREFIXES = (NOT_FOUND, OUT_OF_SCOPE, NOT_FOUND_EN, OUT_OF_SCOPE_EN)
+
+
+def is_english(text: str) -> bool:
+    """True when most letters in the question are Latin (A-Z)."""
+    letters = [c for c in text if c.isalpha()]
+    latin = sum(c.isascii() for c in letters)
+    return bool(letters) and latin / len(letters) > 0.5
+
+
+def is_refusal(answer: str) -> bool:
+    return any(answer.strip().startswith(p[:15]) for p in REFUSAL_PREFIXES)
 
 SYSTEM_PROMPT = f"""أنت "المرشد الأكاديمي الذكي" لطلبة جامعة بوليتكنك فلسطين. تجيب فقط اعتمادًا على المقاطع داخل <context>.
 
 القواعد:
 1. أجب فقط من المقاطع داخل <context>. لا تستخدم معرفتك العامة ولا تخمّن أي رقم أو قاعدة.
-2. إذا لم تكفِ المقاطع للإجابة، ابدأ ردك حرفيًا بـ: "{NOT_FOUND}" ثم أحِل الطالب إلى الجهة المختصة: عمادة القبول والتسجيل (للتعليمات والتسجيل والتقويم)، أو الدائرة والمشرف الأكاديمي (للخطط والمساقات)، أو جدول الامتحانات الرسمي (لمواعيد الامتحانات).
-3. إذا كان السؤال لا علاقة له بالدراسة في الجامعة، أجب بهذا النص فقط: "{OUT_OF_SCOPE}"
-4. افهم السؤال حتى لو كان باللهجة المحكية، وأجب بعربية فصحى مبسّطة وواضحة.
-5. في نهاية كل إجابة اكتب سطرًا يبدأ بـ "المصدر:" يذكر اسم المستند كما في title، ورقم المادة أو رقم المساق أو الصفحة إن وُجدت في المقطع. مثال: "المصدر: تعليمات الدراسة لدرجة البكالوريوس، المادة (7)".
+2. إذا لم تكفِ المقاطع للإجابة، ابدأ ردك حرفيًا بـ: "{NOT_FOUND}" (أو بالإنجليزية: "{NOT_FOUND_EN}") ثم أحِل الطالب إلى الجهة المختصة: عمادة القبول والتسجيل (للتعليمات والتسجيل والتقويم)، أو الدائرة والمشرف الأكاديمي (للخطط والمساقات)، أو جدول الامتحانات الرسمي (لمواعيد الامتحانات).
+3. إذا كان السؤال لا علاقة له بالدراسة في الجامعة، أجب بهذا النص فقط: "{OUT_OF_SCOPE}" (أو بالإنجليزية: "{OUT_OF_SCOPE_EN}")
+4. اللغة: أجب بلغة السؤال. إذا كان السؤال بالإنجليزية فأجب بالإنجليزية بالكامل، مع ترجمة المعلومة من المقاطع العربية بدقة والحفاظ على الأرقام ورموز المساقات وأرقام المواد. وإذا كان بالعربية أو باللهجة المحكية فافهم القصد وأجب بعربية فصحى مبسّطة وواضحة.
+5. في نهاية كل إجابة اكتب سطرًا يبدأ بـ "المصدر:" (أو "Source:" للإجابة الإنجليزية) يذكر اسم المستند كما في title، ورقم المادة أو رقم المساق أو الصفحة إن وُجدت في المقطع. مثال: "المصدر: تعليمات الدراسة لدرجة البكالوريوس، المادة (7)".
 6. القواعد تختلف بين الدبلوم والبكالوريوس والماجستير: لا تخلط بينها. إذا لم يذكر الطالب درجته واختلفت القاعدة بين الدرجات، اذكر الحكم لكل درجة باختصار، أو افترض البكالوريوس وصرّح بذلك.
 7. الخطط الدراسية تختلف حسب سنة الخطة (مثل 2020 و2022). لا تطبّق خطة على طالب من خطة أخرى، وإذا تعارضت نسختان اذكر الاثنتين وأحِل إلى الدائرة.
 8. إذا احتاج السؤال الجمع بين أكثر من مقطع (مثل المعدل + العبء الدراسي)، اجمع بينها واذكر كل المصادر.
@@ -115,7 +131,7 @@ def ask(question: str, history: list[tuple[str, str]] | None = None) -> dict:
     hits = retrieve(search_query)
 
     if not hits:  # relevance gate: nothing close enough -> polite out-of-scope answer, no model call
-        return {"answer": OUT_OF_SCOPE, "sources": [], "hits": []}
+        return {"answer": OUT_OF_SCOPE_EN if is_english(question) else OUT_OF_SCOPE, "sources": [], "hits": []}
 
     messages = []
     for q, a in history:
@@ -123,8 +139,7 @@ def ask(question: str, history: list[tuple[str, str]] | None = None) -> dict:
     messages.append({"role": "user", "content": f"{build_context(hits)}\n\nسؤال الطالب: {question}"})
 
     answer = llm(SYSTEM_PROMPT, messages).strip()
-    refused = answer.startswith(NOT_FOUND[:15]) or answer.startswith(OUT_OF_SCOPE[:15])
-    return {"answer": answer, "sources": [] if refused else format_sources(hits), "hits": hits}
+    return {"answer": answer, "sources": [] if is_refusal(answer) else format_sources(hits), "hits": hits}
 
 
 if __name__ == "__main__":

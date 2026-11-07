@@ -25,7 +25,8 @@ MAX_DISTANCE = 0.62  # measured: our questions 0.23-0.56, poem 0.64, World Cup 0
 USE_HYBRID = True    # semantic + keyword search merged with RRF
 
 # Words that tell us which degree the student is asking about (metadata filter).
-DEGREE_WORDS = {"دبلوم": "دبلوم", "ماجستير": "ماجستير", "ماستر": "ماجستير"}
+DEGREE_WORDS = {"دبلوم": "دبلوم", "ماجستير": "ماجستير", "ماستر": "ماجستير",
+                "diploma": "دبلوم", "master": "ماجستير"}
 
 # Dialect / everyday words -> the formal words used in the regulations.
 # The question is EXPANDED with these words before searching (it is not replaced).
@@ -47,14 +48,28 @@ DIALECT_TERMS = {
     "بقدر": "",
     "قديش": "كم",
     "شو": "ما",
+    # English questions -> the Arabic words used in the documents
+    "absent": "الغياب الحضور الحرمان",
+    "absence": "الغياب الحضور الحرمان",
+    "miss": "الغياب الحضور الحرمان",
+    "attendance": "الحضور الغياب الحرمان",
+    "withdraw": "الانسحاب السحب والإضافة",
+    "warning": "التحذير الإنذار الأكاديمي",
+    "probation": "التحذير الإنذار الأكاديمي",
+    "register": "العبء الدراسي الساعات المعتمدة الحد الأعلى",
+    "graduate": "التخرج",
+    "repeat": "إعادة المساق",
+    "postpone": "التأجيل",
+    "passing": "النجاح علامة",
+    "prerequisite": "المتطلب سابق",
 }
 
 
 # If the question is about an EXAM, "غبت" means missing an exam (not lectures),
 # so these words replace the attendance expansion.
-EXAM_WORDS = ("امتحان", "امتحانات", "فاينل", "نهائي", "ميدتيرم", "اختبار")
+EXAM_WORDS = ("امتحان", "امتحانات", "فاينل", "نهائي", "ميدتيرم", "اختبار", "exam", "final", "midterm")
 EXAM_TERMS = "الامتحان الفائت الامتحان النهائي التكميلي العذر ظرف قاهر قضية طلابية"
-ATTENDANCE_WORDS = ("غبت", "اغيب", "غياب")
+ATTENDANCE_WORDS = ("غبت", "اغيب", "غياب", "absent", "absence", "miss", "attendance")
 
 
 def expand_question(question: str) -> str:

@@ -24,6 +24,7 @@ SUGGESTED = [
     "اذا غبت عن امتحان لظرف ما شو ممكن اعمل؟",
     "ما الفرق بين خطة علم الحاسوب 2020 و2022؟",
     "متى امتحان الخوارزميات؟",
+    "How many credit hours is Data Structures and what is its prerequisite?",
 ]
 
 HEADER = f"""
@@ -35,7 +36,7 @@ HEADER = f"""
     <p class="typing">اسأل بالفصحى أو باللهجة… والإجابة من مستندات الجامعة الرسمية مع المصدر</p>
     <div class="chips">
       <span class="chip">📄 مصادر رسمية</span>
-      <span class="chip">🗣️ يفهم اللهجة</span>
+      <span class="chip">🗣️ يفهم اللهجة و English</span>
       <span class="chip">🔢 رقم المادة والمساق</span>
       <span class="chip">🛑 "لا أعرف" بدل التخمين</span>
     </div>

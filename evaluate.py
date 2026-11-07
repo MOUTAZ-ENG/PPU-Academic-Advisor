@@ -18,7 +18,8 @@ from datetime import datetime
 
 import ingest
 import retriever
-from generator import NOT_FOUND, OUT_OF_SCOPE, ask, build_context, llm
+from generator import ask, build_context, llm
+from generator import is_refusal as _is_refusal
 from ingest import BASE_DIR, normalize_ar
 from retriever import retrieve
 
@@ -33,8 +34,7 @@ def contains(text: str, keywords: list[str]) -> bool:
 
 
 def is_refusal(answer: str) -> bool:
-    a = normalize_ar(answer)
-    return a.startswith(normalize_ar(NOT_FOUND[:15])) or a.startswith(normalize_ar(OUT_OF_SCOPE[:15]))
+    return _is_refusal(answer)  # Arabic and English refusal messages
 
 
 def judge_faithfulness(question: str, answer: str, hits: list[dict]) -> bool:

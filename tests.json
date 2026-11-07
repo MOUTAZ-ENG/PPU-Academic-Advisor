@@ -12,6 +12,8 @@
   {"q": "ما الفرق في علامة النجاح بين الدبلوم والبكالوريوس؟", "has": ["50", "60"], "type": "multi"},
   {"q": "ما الفرق بين خطة علم الحاسوب 2020 و2022 في متطلبات الجامعة الإجبارية؟", "has": ["22", "23"], "type": "conflict"},
   {"q": "اذا غبت عن امتحان لظرف ما شو ممكن اعمل؟", "has": ["ثلاثة أيام", "48"], "type": "dialect"},
+  {"q": "How many credit hours is Data Structures and what is its prerequisite?", "has": ["5059", "3"], "type": "english"},
+  {"q": "Can I withdraw from a course after the fourth week?", "has": ["10", "W"], "type": "english"},
   {"q": "متى امتحان الخوارزميات؟", "has": [], "type": "not_in_docs"},
   {"q": "كم رسوم الساعة المعتمدة في الجامعة؟", "has": [], "type": "not_in_docs"},
   {"q": "اكتب لي قصيدة عن الجامعة", "has": [], "type": "out_of_scope"}
