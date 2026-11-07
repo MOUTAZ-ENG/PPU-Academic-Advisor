@@ -52,23 +52,34 @@ SYSTEM_PROMPT = f"""أنت "المرشد الأكاديمي الذكي" لطلب
 3. إذا كان السؤال لا علاقة له بالدراسة في الجامعة، أجب بهذا النص فقط: "{OUT_OF_SCOPE}" (أو بالإنجليزية: "{OUT_OF_SCOPE_EN}")
 4. اللغة: أجب بلغة السؤال. إذا كان السؤال بالإنجليزية فأجب بالإنجليزية بالكامل، مع ترجمة المعلومة من المقاطع العربية بدقة والحفاظ على الأرقام ورموز المساقات وأرقام المواد. وإذا كان بالعربية أو باللهجة المحكية فافهم القصد وأجب بعربية فصحى مبسّطة وواضحة.
 5. في نهاية كل إجابة اكتب سطرًا يبدأ بـ "المصدر:" (أو "Source:" للإجابة الإنجليزية) يذكر اسم المستند كما في title، ورقم المادة أو رقم المساق أو الصفحة إن وُجدت في المقطع. مثال: "المصدر: تعليمات الدراسة لدرجة البكالوريوس، المادة (7)".
-6. القواعد تختلف بين الدبلوم والبكالوريوس والماجستير: لا تخلط بينها. إذا لم يذكر الطالب درجته واختلفت القاعدة بين الدرجات، اذكر الحكم لكل درجة باختصار، أو افترض البكالوريوس وصرّح بذلك.
+6. القواعد تختلف بين الدبلوم والبكالوريوس والماجستير: لا تخلط بينها. إذا لم يذكر الطالب درجته فافترض البكالوريوس وصرّح بذلك في سطر واحد، ولا تسرد أحكام الدبلوم والماجستير إلا إذا سُئل عنها أو كان الفرق جوهريًا.
 7. الخطط الدراسية تختلف حسب سنة الخطة (مثل 2020 و2022). لا تطبّق خطة على طالب من خطة أخرى، وإذا تعارضت نسختان اذكر الاثنتين وأحِل إلى الدائرة.
 8. إذا احتاج السؤال الجمع بين أكثر من مقطع (مثل المعدل + العبء الدراسي)، اجمع بينها واذكر كل المصادر.
 9. استخدم خطوات مرقمة أو جدولًا قصيرًا عندما يسهّل ذلك الفهم.
 10. إذا اعتمدت على "تعليمات هامة للامتحانات" فنبّه أنها إعلان كلية وليست تعليمات رسمية موثّقة لكل الجامعة.
-11. لا تحسب للطالب ساعاته المتبقية للتخرج دون سجله الدراسي؛ اشرح القاعدة وأحِله إلى مشرفه الأكاديمي."""
+11. لا تحسب للطالب ساعاته المتبقية للتخرج دون سجله الدراسي؛ اشرح القاعدة وأحِله إلى مشرفه الأكاديمي.
+12. الإيجاز: أجب بإجابة مركّزة ومباشرة (حوالي 120 كلمة كحد أقصى)، بنقاط قصيرة، دون مقدمات أو تكرار."""
 
 _client = None
 _gemini_clients: dict[str, object] = {}
 _exhausted: dict[tuple[str, str], float] = {}  # (key, model) -> time it hit its quota
-RETRY_AFTER = 600  # seconds before trying an exhausted key/model again
+RETRY_AFTER = 120  # seconds before trying a rate-limited key/model again (limits are per minute)
+
+
+_turn = 0  # round-robin counter: spreads questions over the keys (per-minute limits)
 
 
 def _gemini_keys() -> list[str]:
-    """GEMINI_API_KEY plus optional backup keys GEMINI_API_KEY_2, _3 (other Google accounts)."""
+    """GEMINI_API_KEY plus optional backup keys GEMINI_API_KEY_2, _3 (other Google accounts),
+    rotated so that each new question starts with the next key."""
+    global _turn
     names = ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]
-    return [k for k in (os.getenv(n, "").strip() for n in names) if k]
+    keys = [k for k in (os.getenv(n, "").strip() for n in names) if k]
+    if not keys:
+        return []
+    start = _turn % len(keys)
+    _turn += 1
+    return keys[start:] + keys[:start]
 
 
 def llm(system: str, messages: list[dict]) -> str:
@@ -80,8 +91,9 @@ def llm(system: str, messages: list[dict]) -> str:
         # Free tier: every key and every model has its own quota. Try the best model on
         # each key first, then the fallback model. A key/model that hit its limit is
         # skipped for 10 minutes, so later questions do not waste time on it.
+        keys = _gemini_keys()  # computed once per question (rotation)
         for model in (GEMINI_MODEL, GEMINI_FALLBACK):
-            for key in _gemini_keys():
+            for key in keys:
                 if time.time() - _exhausted.get((key, model), 0) < RETRY_AFTER:
                     continue
                 client = _gemini_clients.setdefault(key, OpenAI(

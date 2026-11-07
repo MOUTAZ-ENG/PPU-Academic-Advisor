@@ -106,12 +106,17 @@ def refresh():
     _bm25_index.cache_clear()
 
 
+BACHELOR_WORDS = ("بكالوريوس", "بكالوريس", "bachelor")
+
+
 def detect_degree(question: str) -> str | None:
+    """Return the ONE degree the question is about, or None (no filter).
+    If several degrees are named (e.g. "diploma vs bachelor"), we must not filter."""
     q = normalize_ar(question)
-    for word, degree in DEGREE_WORDS.items():
-        if normalize_ar(word) in q:
-            return degree
-    return None
+    found = {degree for word, degree in DEGREE_WORDS.items() if normalize_ar(word) in q}
+    if any(normalize_ar(w) in q for w in BACHELOR_WORDS):
+        found.add("بكالوريوس")
+    return found.pop() if len(found) == 1 and "بكالوريوس" not in found else None
 
 
 def semantic_search(question: str, k: int, degree: str | None = None) -> list[dict]:
