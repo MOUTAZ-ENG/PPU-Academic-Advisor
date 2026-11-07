@@ -1,0 +1,9 @@
+chromadb==1.5.9
+sentence-transformers==6.2.0
+pymupdf==2.1
+rank-bm25==0.2.2
+openai==3.46.0
+anthropic==2.6.0
+gradio==6.31.0
+python-dotenv==1.2.4
+python-telegram-bot==22.8

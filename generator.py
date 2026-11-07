@@ -1,0 +1,141 @@
+"""Generation layer: build a grounded prompt, call the LLM, return answer + sources.
+
+`ask()` is the only function the interfaces (web app, Telegram bot) need.
+    python generator.py      -> chat in the terminal
+"""
+import os
+import sys
+import time
+
+from dotenv import load_dotenv
+
+from retriever import retrieve
+
+load_dotenv()  # reads the API keys from .env (.env is never committed)
+
+# ================================================================ SETTINGS ===
+LLM_PROVIDER = "gemini"          # "gemini" (free tier) or "claude"
+GEMINI_MODEL = "gemini-3.6-flash"                # best answers (smaller free quota)
+GEMINI_FALLBACK = "gemini-3.5-flash-lite"        # used automatically if the main model hits its limit
+CLAUDE_MODEL = "claude-sonnet-5-5"
+MAX_TOKENS = 4000                # 3.6-flash "thinks" first: 900 cut answers in half
+HISTORY_TURNS = 3                # previous Q/A pairs kept for follow-up questions
+
+# Answer when the question is unrelated to the university (no model call is made).
+OUT_OF_SCOPE = ("عذرًا، أنا المرشد الأكاديمي لجامعة بوليتكنك فلسطين، وأجيب فقط عن الأسئلة "
+                "الأكاديمية من مستندات الجامعة: تعليمات الدراسة، والخطط الدراسية، وتعليمات الامتحانات.")
+# Start of the answer when the topic is academic but the documents do not contain it.
+NOT_FOUND = "لا أجد هذه المعلومة في المستندات المتاحة لي."
+
+SYSTEM_PROMPT = f"""أنت "المرشد الأكاديمي الذكي" لطلبة جامعة بوليتكنك فلسطين. تجيب فقط اعتمادًا على المقاطع داخل <context>.
+
+القواعد:
+1. أجب فقط من المقاطع داخل <context>. لا تستخدم معرفتك العامة ولا تخمّن أي رقم أو قاعدة.
+2. إذا لم تكفِ المقاطع للإجابة، ابدأ ردك حرفيًا بـ: "{NOT_FOUND}" ثم أحِل الطالب إلى الجهة المختصة: عمادة القبول والتسجيل (للتعليمات والتسجيل والتقويم)، أو الدائرة والمشرف الأكاديمي (للخطط والمساقات)، أو جدول الامتحانات الرسمي (لمواعيد الامتحانات).
+3. إذا كان السؤال لا علاقة له بالدراسة في الجامعة، أجب بهذا النص فقط: "{OUT_OF_SCOPE}"
+4. افهم السؤال حتى لو كان باللهجة المحكية، وأجب بعربية فصحى مبسّطة وواضحة.
+5. في نهاية كل إجابة اكتب سطرًا يبدأ بـ "المصدر:" يذكر اسم المستند كما في title، ورقم المادة أو رقم المساق أو الصفحة إن وُجدت في المقطع. مثال: "المصدر: تعليمات الدراسة لدرجة البكالوريوس، المادة (7)".
+6. القواعد تختلف بين الدبلوم والبكالوريوس والماجستير: لا تخلط بينها. إذا لم يذكر الطالب درجته واختلفت القاعدة بين الدرجات، اذكر الحكم لكل درجة باختصار، أو افترض البكالوريوس وصرّح بذلك.
+7. الخطط الدراسية تختلف حسب سنة الخطة (مثل 2020 و2022). لا تطبّق خطة على طالب من خطة أخرى، وإذا تعارضت نسختان اذكر الاثنتين وأحِل إلى الدائرة.
+8. إذا احتاج السؤال الجمع بين أكثر من مقطع (مثل المعدل + العبء الدراسي)، اجمع بينها واذكر كل المصادر.
+9. استخدم خطوات مرقمة أو جدولًا قصيرًا عندما يسهّل ذلك الفهم.
+10. إذا اعتمدت على "تعليمات هامة للامتحانات" فنبّه أنها إعلان كلية وليست تعليمات رسمية موثّقة لكل الجامعة.
+11. لا تحسب للطالب ساعاته المتبقية للتخرج دون سجله الدراسي؛ اشرح القاعدة وأحِله إلى مشرفه الأكاديمي."""
+
+_client = None
+
+
+def llm(system: str, messages: list[dict]) -> str:
+    """The ONLY function that talks to the model. Switch provider with LLM_PROVIDER."""
+    global _client
+    if LLM_PROVIDER == "gemini":
+        # Gemini accepts the OpenAI request format, so we use the openai library.
+        from openai import APIStatusError, OpenAI
+        if _client is None:
+            _client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"),
+                             base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+        # Free tier: each model has its own quota. If the main model is out of quota (429)
+        # or busy (5xx), switch to the fallback model instead of failing.
+        for model in (GEMINI_MODEL, GEMINI_FALLBACK, GEMINI_MODEL):
+            try:
+                reply = _client.chat.completions.create(
+                    model=model,
+                    max_tokens=MAX_TOKENS,
+                    messages=[{"role": "system", "content": system}] + messages,
+                )
+                return reply.choices[0].message.content or ""
+            except APIStatusError as e:
+                if e.status_code != 429 and e.status_code < 500:
+                    raise
+                print(f"  ! {model} unavailable ({e.status_code}), switching model")
+                time.sleep(2)
+        raise RuntimeError("All Gemini models are out of quota right now")
+
+    import anthropic
+    if _client is None:
+        _client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from .env
+    reply = _client.messages.create(model=CLAUDE_MODEL, max_tokens=MAX_TOKENS,
+                                    system=system, messages=messages)
+    return reply.content[0].text
+
+
+def build_context(hits: list[dict]) -> str:
+    """Number the chunks and attach each chunk's document title and degree."""
+    blocks = []
+    for n, h in enumerate(hits, start=1):
+        m = h["metadata"]
+        page = f' page="{m["page"]}"' if m.get("page") else ""
+        blocks.append(f'<chunk id="{n}" title="{m["title"]}" degree="{m["degree"]}"{page}>\n{h["text"]}\n</chunk>')
+    return "<context>\n" + "\n\n".join(blocks) + "\n</context>"
+
+
+def format_sources(hits: list[dict]) -> list[str]:
+    """One line per document used (no duplicates): title + official link."""
+    seen, out = set(), []
+    for h in hits:
+        m = h["metadata"]
+        if m["source"] in seen:
+            continue
+        seen.add(m["source"])
+        link = f" - {m['url']}" if m.get("url", "").startswith("http") else ""
+        out.append(f"{m['title']}{link}")
+    return out
+
+
+def ask(question: str, history: list[tuple[str, str]] | None = None) -> dict:
+    """Answer a question. `history` = previous (question, answer) pairs for follow-ups.
+
+    Returns {"answer": str, "sources": [str], "hits": [chunks]}.
+    """
+    history = (history or [])[-HISTORY_TURNS:]
+
+    # Follow-up questions ("وإذا كان معدلي أعلى؟") have no topic of their own, so we
+    # search with the previous question added to give the retriever the context.
+    search_query = f"{history[-1][0]} {question}" if history else question
+    hits = retrieve(search_query)
+
+    if not hits:  # relevance gate: nothing close enough -> polite out-of-scope answer, no model call
+        return {"answer": OUT_OF_SCOPE, "sources": [], "hits": []}
+
+    messages = []
+    for q, a in history:
+        messages += [{"role": "user", "content": q}, {"role": "assistant", "content": a}]
+    messages.append({"role": "user", "content": f"{build_context(hits)}\n\nسؤال الطالب: {question}"})
+
+    answer = llm(SYSTEM_PROMPT, messages).strip()
+    refused = answer.startswith(NOT_FOUND[:15]) or answer.startswith(OUT_OF_SCOPE[:15])
+    return {"answer": answer, "sources": [] if refused else format_sources(hits), "hits": hits}
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    hist = []
+    while True:
+        q = input("\nسؤالك (أو quit): ").strip()
+        if q == "quit":
+            break
+        result = ask(q, hist)
+        print("\n" + result["answer"])
+        for s in result["sources"]:
+            print("  📄 " + s)
+        hist.append((q, result["answer"]))

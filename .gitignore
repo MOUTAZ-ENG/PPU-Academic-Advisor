@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+chroma_db/
+*.pyc
+.gradio/
+CLAUDE.md
+BONUS_PLAN.md
