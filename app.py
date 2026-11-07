@@ -361,4 +361,5 @@ with gr.Blocks(title=TITLE) as demo:
 
 
 if __name__ == "__main__":
+    retriever.retrieve("تسجيل")  # warm-up: load the embedding model now, not on the first question
     demo.launch(css=CSS, theme=THEME, js=FORCE_DARK_JS, inbrowser=True)

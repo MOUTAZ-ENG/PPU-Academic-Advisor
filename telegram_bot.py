@@ -62,6 +62,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("new", new_chat))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, answer))
+    from retriever import retrieve
+    retrieve("تسجيل")  # warm-up: load the embedding model now, not on the first question
     print("Bot is running... (Ctrl+C to stop)")
     app.run_polling()
 

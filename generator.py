@@ -19,6 +19,7 @@ GEMINI_MODEL = "gemini-3.6-flash"                # best answers (smaller free qu
 GEMINI_FALLBACK = "gemini-3.5-flash-lite"        # used automatically if the main model hits its limit
 CLAUDE_MODEL = "claude-sonnet-5-5"
 MAX_TOKENS = 4000                # 3.6-flash "thinks" first: 900 cut answers in half
+REASONING_EFFORT = "low"         # less "thinking": ~8 s instead of 20-26 s, same correct answers
 HISTORY_TURNS = 3                # previous Q/A pairs kept for follow-up questions
 
 # Answer when the question is unrelated to the university (no model call is made).
@@ -89,6 +90,7 @@ def llm(system: str, messages: list[dict]) -> str:
                     reply = client.chat.completions.create(
                         model=model,
                         max_tokens=MAX_TOKENS,
+                        reasoning_effort=REASONING_EFFORT,
                         messages=[{"role": "system", "content": system}] + messages,
                     )
                     return reply.choices[0].message.content or ""
@@ -135,7 +137,9 @@ def ask(question: str, history: list[tuple[str, str]] | None = None) -> dict:
 
     Returns {"answer": str, "sources": [str], "hits": [chunks]}.
     """
-    history = (history or [])[-HISTORY_TURNS:]
+    # Earlier refusals are not kept in memory: a wrong "I can't find it" must not be
+    # repeated when the student asks again.
+    history = [(q, a) for q, a in (history or []) if not is_refusal(a)][-HISTORY_TURNS:]
 
     # Follow-up questions ("وإذا كان معدلي أعلى؟") have no topic of their own, so we
     # search with the previous question added to give the retriever the context.
