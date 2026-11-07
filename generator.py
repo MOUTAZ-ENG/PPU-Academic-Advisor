@@ -74,6 +74,10 @@ def _gemini_keys() -> list[str]:
     rotated so that each new question starts with the next key."""
     global _turn
     names = ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]
+    # GEMINI_USE in .env picks which keys are active, e.g. "1" (testing) or "2,3" (judging).
+    use = os.getenv("GEMINI_USE", "").replace(" ", "")
+    if use:
+        names = [names[int(i) - 1] for i in use.split(",") if i.isdigit() and 1 <= int(i) <= len(names)]
     keys = [k for k in (os.getenv(n, "").strip() for n in names) if k]
     if not keys:
         return []
