@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
+from analytics import log_interaction
 from generator import HISTORY_TURNS, ask
 
 load_dotenv()
@@ -44,6 +45,7 @@ async def answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print("Error:", e)
         await update.message.reply_text("⚠️ تعذّر الاتصال بالموديل حاليًا. حاول مرة أخرى بعد قليل.")
         return
+    log_interaction("telegram", question, answered=bool(result["sources"]), n_sources=len(result["sources"]))
     reply = result["answer"]
     if result["sources"]:
         reply += "\n\n📄 المصادر:\n" + "\n".join(result["sources"])

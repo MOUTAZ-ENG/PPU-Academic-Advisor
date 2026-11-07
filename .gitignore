@@ -6,3 +6,4 @@ chroma_db/
 .gradio/
 CLAUDE.md
 BONUS_PLAN.md
+logs/
