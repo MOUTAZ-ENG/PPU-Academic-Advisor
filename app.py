@@ -142,8 +142,9 @@ body, .gradio-container { background: radial-gradient(1200px 600px at 85% -10%, 
 .tg-btn:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 14px 34px rgba(34,211,238,.55); }
 
 /* ---------------- panels, tabs, chat ---------------- */
-.block, .form, .tabitem { background: var(--panel) !important; border-color: var(--line) !important;
-                          backdrop-filter: blur(10px); border-radius: 18px !important; }
+/* no backdrop-filter: it stopped parts of the page from rendering in some browsers */
+.block, .form, .tabitem { background: rgba(17, 24, 39, .88) !important; border-color: var(--line) !important;
+                          border-radius: 18px !important; }
 button[role="tab"] { font-size: 1.05em !important; font-weight: 700 !important; color: var(--muted) !important;
                      transition: color .2s; }
 button[role="tab"][aria-selected="true"] { color: var(--c1) !important; }
@@ -192,6 +193,72 @@ button[role="tab"][aria-selected="true"] { color: var(--c1) !important; }
 @keyframes fadeDown { from { opacity: 0; transform: translateY(-16px) } to { opacity: 1; transform: none } }
 @keyframes msgIn { from { opacity: 0; transform: translateY(14px) scale(.98) } to { opacity: 1; transform: none } }
 @keyframes glowPulse { 0%,100% { box-shadow: 0 10px 24px rgba(99,102,241,.30) } 50% { box-shadow: 0 10px 32px rgba(34,211,238,.50) } }
+
+/* ===================== v2: more colors, bigger layout, responsive text, tables ===================== */
+:root { --c4: #ec4899; --c5: #f59e0b; --c6: #10b981; --rainbow: linear-gradient(90deg, #22d3ee, #6366f1, #a855f7, #ec4899, #f59e0b, #10b981, #22d3ee); }
+
+/* use the whole screen width, text that scales with the screen */
+.gradio-container { max-width: min(1500px, 96vw) !important; width: 100% !important; font-size: clamp(15px, 1.05vw, 19px) !important; }
+.hero { padding: clamp(26px, 4vw, 54px) clamp(16px, 3vw, 40px) !important; }
+.hero h1 { font-size: clamp(1.9em, 3.6vw, 3.4em) !important; }
+.typing { font-size: clamp(1em, 1.4vw, 1.35em) !important; }
+.stats { max-width: 980px !important; }
+.stat b { font-size: clamp(1.4em, 2.2vw, 2.1em) !important; }
+#chat .message, .message { font-size: clamp(1em, 1.15vw, 1.2em) !important; }
+#ask-box textarea { font-size: clamp(1em, 1.15vw, 1.2em) !important; min-height: 64px; }
+
+/* rainbow animated border + background glows */
+.hero::before { background: var(--rainbow) !important; background-size: 400% 100% !important; }
+body, .gradio-container { background:
+    radial-gradient(900px 500px at 90% -5%, rgba(99,102,241,.22), transparent 60%),
+    radial-gradient(800px 480px at 5% 105%, rgba(34,211,238,.16), transparent 60%),
+    radial-gradient(700px 420px at 50% 50%, rgba(236,72,153,.07), transparent 70%),
+    radial-gradient(600px 380px at 10% 20%, rgba(245,158,11,.06), transparent 70%), var(--bg) !important; }
+.orb2 { background: var(--c4) !important; } .orb3 { background: var(--c5) !important; opacity: .35 !important; }
+.hero h1 { background: linear-gradient(90deg, #fff, #67e8f9, #c4b5fd, #f9a8d4, #fde68a, #fff) !important;
+           background-size: 400% 100% !important; -webkit-background-clip: text !important; background-clip: text !important; }
+
+/* each chip, stat and suggested question gets its own color */
+.chip:nth-child(1) { border-color: rgba(34,211,238,.55) } .chip:nth-child(2) { border-color: rgba(168,85,247,.55) }
+.chip:nth-child(3) { border-color: rgba(245,158,11,.55) } .chip:nth-child(4) { border-color: rgba(16,185,129,.55) }
+.chip:nth-child(1):hover { box-shadow: 0 8px 22px rgba(34,211,238,.30) } .chip:nth-child(2):hover { box-shadow: 0 8px 22px rgba(168,85,247,.30) }
+.chip:nth-child(3):hover { box-shadow: 0 8px 22px rgba(245,158,11,.30) } .chip:nth-child(4):hover { box-shadow: 0 8px 22px rgba(16,185,129,.30) }
+.stat:nth-child(1) b { color: #22d3ee !important } .stat:nth-child(2) b { color: #a78bfa !important }
+.stat:nth-child(3) b { color: #f472b6 !important } .stat:nth-child(4) b { color: #34d399 !important }
+.stat:nth-child(1) { border-top: 3px solid #22d3ee } .stat:nth-child(2) { border-top: 3px solid #a78bfa }
+.stat:nth-child(3) { border-top: 3px solid #f472b6 } .stat:nth-child(4) { border-top: 3px solid #34d399 }
+#suggested button:nth-child(6n+1) { border-color: rgba(34,211,238,.5) !important } #suggested button:nth-child(6n+2) { border-color: rgba(99,102,241,.5) !important }
+#suggested button:nth-child(6n+3) { border-color: rgba(168,85,247,.5) !important } #suggested button:nth-child(6n+4) { border-color: rgba(236,72,153,.5) !important }
+#suggested button:nth-child(6n+5) { border-color: rgba(245,158,11,.5) !important } #suggested button:nth-child(6n+6) { border-color: rgba(16,185,129,.5) !important }
+#suggested button { font-size: clamp(.95em, 1vw, 1.1em) !important; padding: 8px 16px !important; }
+
+/* tabs: gradient underline on the selected tab */
+button[role="tab"] { font-size: clamp(1em, 1.1vw, 1.2em) !important; padding: 10px 18px !important; }
+button[role="tab"][aria-selected="true"] { color: #fff !important; border-bottom: 3px solid transparent !important;
+    border-image: linear-gradient(90deg, #22d3ee, #a855f7, #ec4899) 1 !important; }
+#send-btn { background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899) !important; background-size: 200% 100% !important;
+            transition: background-position .4s, transform .15s !important; }
+#send-btn:hover { background-position: 100% 0 !important; }
+#chat .user, .message.user { background: linear-gradient(135deg, rgba(99,102,241,.40), rgba(236,72,153,.22)) !important;
+                              border-color: rgba(168,85,247,.5) !important; }
+#chat .bot, .message.bot { border-right: 3px solid #22d3ee !important; }
+
+/* ---------- tables (answers, dashboard, about) ---------- */
+.gradio-container table { width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important;
+    border-radius: 14px !important; overflow: hidden !important; margin: 10px 0 !important;
+    border: 1px solid rgba(148,163,184,.25) !important; box-shadow: 0 10px 28px rgba(0,0,0,.30); animation: fadeUp .5s ease both; }
+.gradio-container thead th, .gradio-container table tr:first-child th {
+    background: linear-gradient(90deg, rgba(34,211,238,.35), rgba(99,102,241,.35), rgba(168,85,247,.35)) !important;
+    color: #fff !important; font-weight: 800 !important; padding: 12px 14px !important; text-align: right !important;
+    border: none !important; font-size: 1.02em; }
+.gradio-container td { padding: 11px 14px !important; text-align: right !important; color: #e5e9f5 !important;
+    border: none !important; border-top: 1px solid rgba(148,163,184,.12) !important; }
+.gradio-container tbody tr:nth-child(odd) td { background: rgba(255,255,255,.025) !important; }
+.gradio-container tbody tr:nth-child(even) td { background: rgba(99,102,241,.07) !important; }
+.gradio-container tbody tr { transition: background .2s; }
+.gradio-container tbody tr:hover td { background: rgba(34,211,238,.13) !important; }
+.gradio-container td strong { color: #67e8f9 !important; }
+.prose h3 { color: #c4b5fd !important; margin-top: 18px !important; }
 """
 
 THEME = gr.themes.Soft(primary_hue="cyan", secondary_hue="indigo", neutral_hue="slate").set(
@@ -258,7 +325,7 @@ def upload(files) -> str:
 with gr.Blocks(title=TITLE) as demo:
     gr.HTML(HEADER)
     with gr.Tab("💬 المحادثة"):
-        chatbot = gr.Chatbot(elem_id="chat", height=520, rtl=True, label="المحادثة")
+        chatbot = gr.Chatbot(elem_id="chat", height=640, rtl=True, label="المحادثة")
         with gr.Row():
             box = gr.Textbox(elem_id="ask-box", placeholder="✍️ اكتب سؤالك هنا… مثال: كم ساعة بقدر أسجل إذا كنت منذر؟",
                              scale=6, show_label=False, rtl=True, autofocus=True)
